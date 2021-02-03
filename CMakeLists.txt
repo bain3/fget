@@ -1,0 +1,9 @@
+cmake_minimum_required(VERSION 3.17)
+project(fget)
+
+set(CMAKE_CXX_STANDARD 17)
+
+add_executable(fget main.cpp libs/fastpbkdf2.c crypto/crypto.h crypto/crypto.cpp connection/connection.h connection/connection.cpp args.h download.cpp download.h)
+
+find_package(OpenSSL REQUIRED)
+target_link_libraries(fget OpenSSL::SSL OpenSSL::Crypto)
