@@ -38,7 +38,7 @@ int download(const std::string &path, const std::string &path_to, const bool &in
         std::cout << (std::string) escape + "31m" + "Invalid url." + escape + "0m\n";
         return 1;
     }
-    std::cout << "Connecting to " << host << " using " << scheme << ", id is " << id << ", key: " << key << std::endl;
+//    std::cout << "Connecting to " << host << " using " << scheme << ", id is " << id << ", key: " << key << std::endl;
 
     if (scheme == "http")
         std::cout << escape << "34m"
@@ -46,6 +46,9 @@ int download(const std::string &path, const std::string &path_to, const bool &in
                   << escape << "0m" << std::endl;
 
     auto* cli = new httplib::Client(("https://" + host).data());
+    cli->enable_server_certificate_verification(true);
+
+    // Check if server supports HTTPS, use HTTP only with the --insecure option
     auto res = cli->Options("/");
     if (res.error() != 0) {
         if (scheme == "http") {
@@ -54,14 +57,12 @@ int download(const std::string &path, const std::string &path_to, const bool &in
                 std::cout << escape << "34m" << "Using unprotected HTTP!" << escape << "0m" << std::endl;
                 cli = new httplib::Client(("http://"+host).data());
             } else {
-                std::cout << escape << "31m" << "Server does not support HTTPS. Use the --insecure flag if"
+                std::cout << escape << "31m" << "Server does not support HTTPS. Use the --insecure option if"
                                                 " you acknowledge that HTTP is unsecure, but still want to connect."
                           << escape << "0m" << std::endl;
             }
         }
     }
-    cli->enable_server_certificate_verification(true);
-    std::cout << "Server was successfully tested" << std::endl;
 //    std::cout << "Getting website" << std::endl;
 //    auto res = cli.Get("/", [](uint64_t len, uint64_t total) {
 //                           std::cout << len << " / " << total << std::endl;

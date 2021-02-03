@@ -7,3 +7,5 @@ add_executable(fget main.cpp libs/fastpbkdf2.c crypto/crypto.h crypto/crypto.cpp
 
 find_package(OpenSSL REQUIRED)
 target_link_libraries(fget OpenSSL::SSL OpenSSL::Crypto)
+find_package(CryptoPP REQUIRED)
+target_link_libraries(fget cryptopp-static)
