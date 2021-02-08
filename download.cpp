@@ -17,9 +17,28 @@
 
 const int BLOCK_LENGTH = 5242928;
 
-int download(const std::string &path, const std::string &path_to, const bool &insecure) {
+std::string urlDecode(std::string str){
+    std::string ret;
+    char ch;
+    int i, ii, len = str.length();
+
+    for (i=0; i < len; i++){
+        if(str[i] == '%'){
+            sscanf(str.substr(i + 1, 2).c_str(), "%x", &ii);
+            ch = static_cast<char>(ii);
+            ret += ch;
+            i = i + 2;
+        } else {
+            ret += str[i];
+        }
+    }
+    return ret;
+}
+int download(std::string path, const std::string &path_to, const bool &insecure, const bool &overwrite) {
 
     // Parse url
+    path = urlDecode(path);
+    std::cout << path << std::endl;
     std::string scheme;
     std::string host;
     std::string id;
@@ -116,8 +135,8 @@ int download(const std::string &path, const std::string &path_to, const bool &in
     // open output file
     std::ofstream outputfile;
     std::filesystem::path path_(path_to);
-    if (!path_.has_filename()) path_/=filename; // add filename if none was provided
-    if (std::filesystem::exists(path_)) {
+    if (!path_.has_filename() || std::filesystem::is_directory(path_)) path_/=filename; // add filename if none was provided
+    if (std::filesystem::exists(path_) && !overwrite) {
         std::cerr << "File with the name " << path_.filename() << " already exists" << std::endl;
         return 1;
     }
@@ -177,5 +196,6 @@ int download(const std::string &path, const std::string &path_to, const bool &in
     outputfile.close();
     std::cout << "File saved as " << path_.filename() << std::endl;
     delete cli;
+    delete[] block;
     return 0;
 }

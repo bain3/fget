@@ -3847,7 +3847,6 @@ bool ClientImpl::read_response_line(Stream &strm, const Request &req,
   res.version = std::string(m[1]);
   res.status = std::stoi(std::string(m[2]));
   res.reason = std::string(m[3]);
-
   // Ignore '100 Continue'
   while (res.status == 100) {
     if (!line_reader.getline()) { return false; } // CRLF

@@ -5,6 +5,6 @@
 #ifndef FGET_DOWNLOAD_H
 #define FGET_DOWNLOAD_H
 
-int download(const std::string& path, const std::string& path_to, const bool& insecure);
+int download(std::string path, const std::string& path_to, const bool& insecure, const bool &overwrite);
 
 #endif //FGET_DOWNLOAD_H
