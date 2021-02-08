@@ -38,7 +38,6 @@ int download(std::string path, const std::string &path_to, const bool &insecure,
 
     // Parse url
     path = urlDecode(path);
-    std::cout << path << std::endl;
     std::string scheme;
     std::string host;
     std::string id;
@@ -171,6 +170,7 @@ int download(std::string path, const std::string &path_to, const bool &insecure,
                 for (int i = 0; i < 32; i++) {
                     current_iv[i / 4 * 4 + i % 4] = block_dec[i / 4 * 4 + 3 - (i % 4)];
                 }
+                delete block_dec;
                 curr_block_length = 0;
             }
         }
@@ -180,9 +180,10 @@ int download(std::string path, const std::string &path_to, const bool &insecure,
     [&filename, &progress](uint64_t len, uint64_t total) {
         if (progress+10 > len/total*100) return true;
         progress = len/total*100;
-        std::cout << "\r["<< std::setfill(' ') << std::setw(3) << progress << "%] Downloading and decrypting \"" << filename << "\"" << std::endl;
+        std::cout << "["<< std::setfill(' ') << std::setw(3) << progress << "%] Downloading and decrypting \"" << filename << "\"" << std::endl;
         return true;
     });
+    std::cout << std::endl;
     if (curr_block_length != 0) {
         char* block_dec = crypto::decrypt_block(block, curr_block_length, derived_secret, current_iv);
         if (block_dec == nullptr) {
@@ -191,11 +192,11 @@ int download(std::string path, const std::string &path_to, const bool &insecure,
         }
         outputfile.write(block_dec+32, curr_block_length-48);
         outputfile.flush();
+        delete block_dec;
         curr_block_length = 0;
     }
     outputfile.close();
     std::cout << "File saved as " << path_.filename() << std::endl;
     delete cli;
-    delete[] block;
     return 0;
 }

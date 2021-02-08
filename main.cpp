@@ -21,14 +21,13 @@ int main(int argc, char** argv) {
         if (help) {
             std::cout
             << "Usage: fget [options] path [path_to]" << std::endl
+            << " path            Download if URL, upload if local" << std::endl
+            << " path_to         Download path" << std::endl
+            << " --help          Shows this help message" << std::endl
+            << " -o, --overwrite Overwrite files" << std::endl
+            << " --insecure      Allows connections through HTTP, not recommended" << std::endl
             << std::endl
-            << "Native client for f.bain-like websites. Downloads and uploads encrypted files." << std::endl
-            << std::endl
-            << "path\t\tif path path is an URL fget will download the file, if it is a local path it will try to upload" << std::endl
-            << "path_to\t\tdownload path" << std::endl
-            << "--help\t\tshows this help message" << std::endl
-            << "-o, --overwrite\t\toverwrite files" << std::endl
-            << "--insecure\t\tallows connections through HTTP, not recommended" << std::endl;
+            << "Native client for f.bain-like websites. Downloads and uploads encrypted files." << std::endl;
 
             return 0;
         }
