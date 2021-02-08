@@ -7,6 +7,7 @@
 #endif
 
 #include <string>
+#include <filesystem>
 #include "download.h"
 #include "libs/httplib.h"
 #include "libs/json.hpp"
@@ -14,6 +15,7 @@
 
 #define esc "["
 
+const int BLOCK_LENGTH = 5242928;
 
 int download(const std::string &path, const std::string &path_to, const bool &insecure) {
 
@@ -40,7 +42,6 @@ int download(const std::string &path, const std::string &path_to, const bool &in
         std::cerr << "Invalid url." << std::endl;
         return 1;
     }
-//    std::cout << "Connecting to " << host << " using " << scheme << ", id is " << id << ", key: " << key << std::endl;
 
     if (scheme == "http")
         std::cout << esc << "34m"
@@ -76,42 +77,105 @@ int download(const std::string &path, const std::string &path_to, const bool &in
     }
 
     // Get meta about the file. Check if it exists and handle any errors.
-    auto meta = cli->Get(("/"+id+"/meta").data());
+    auto meta = cli->Get(("/" + id + "/meta").data());
     if (meta->status != 200) {
         if (meta->status == 404) {
             std::cerr << "No file with the provided ID was found on the server." << std::endl;
         } else {
             std::cerr << "Server returned error code " << meta->status << std::endl;
         }
+        return 1;
     }
 
     // Parse json
     nlohmann::json json = nlohmann::json::parse(meta->body);
-    int salts_int[2]; json["salt"].get_to(salts_int);
-    std::string filename_enc; json["filename"].get_to(filename_enc);
+    int salts_int[2];
+    json["salt"].get_to(salts_int);
+    std::string filename_enc;
+    json["filename"].get_to(filename_enc);
 
     // derive key and iv
-    auto* salts = static_cast<char*>(static_cast<void *>(salts_int));
+    auto *salts = static_cast<char *>(static_cast<void *>(salts_int));
     char derived_secret[96];
-    derive_secret_pbkdf2(key, salts, sizeof(salts), derived_secret);
-    long long sum = 0;
-    for (char i : derived_secret) sum+= i;
-    std::cout << sum << std::endl;
-    // TODO: Check if filename was successfully decrypted
-    std::string filename = decrypt_string(filename_enc, derived_secret, derived_secret+64);
+    crypto::derive_secret_pbkdf2(key, salts, sizeof(salts), derived_secret);
 
-    std::cout << "Downloading \"" << filename << "\"...";
-//    std::cout << "Getting website" << std::endl;
-//    auto res = cli.Get("/", [](uint64_t len, uint64_t total) {
-//                           std::cout << len << " / " << total << std::endl;
-//                           return true;
-//                       }
-//    );
-//    if (res.error()) {
-//        if (res.error()==10)
-//            std::cout << (std::string)esc+"31m"+"An error occurred while connecting to the server."+esc+"0m\n";
-//    }
-//    std::cout << res->body << std::endl;
+    std::string filename = crypto::decrypt_b64string(filename_enc, derived_secret, derived_secret + 64);
+    if (filename.empty()) {
+        // Assume that no filename means bad decryption
+        std::cerr << "Could not decrypt filename. Aborting download." << std::endl;
+        return 1;
+    }
+
+    // allocate 5mb of memory for a block, set the iv
+    char* block = new char[BLOCK_LENGTH];
+    size_t curr_block_length = 0;
+    size_t total = 0;
+    char current_iv[32];
+    std::memcpy(current_iv, derived_secret+32, 32);
+
+    // open output file
+    std::ofstream outputfile;
+    std::filesystem::path path_(path_to);
+    if (!path_.has_filename()) path_/=filename; // add filename if none was provided
+    if (std::filesystem::exists(path_)) {
+        std::cerr << "File with the name " << path_.filename() << " already exists" << std::endl;
+        return 1;
+    }
+    outputfile.open(path_);
+
+    int progress = -10;
+    // request data and decrypt
+    auto content_resp = cli->Get(("/"+id+"/raw").data(),
+    // Content receiver
+    [&](const char *data, size_t data_length) {
+        size_t data_offset = 0;
+        while (data_offset < data_length) {
+            size_t to_copy = std::min(BLOCK_LENGTH-curr_block_length, data_length-data_offset);
+            std::memcpy(block+curr_block_length, data+data_offset, to_copy);
+            curr_block_length += to_copy;
+            data_offset += to_copy;
+            total += to_copy;
+            // If the curr_block_length is bigger then abort. Something went horribly wrong.
+            if (curr_block_length > BLOCK_LENGTH) {
+                std::cerr << "current block length is bigger than max, abort" << std::endl;
+                return false;
+            }
+            if (curr_block_length == BLOCK_LENGTH) {
+                char* block_dec = crypto::decrypt_block(block, curr_block_length, derived_secret, current_iv);
+                if (block_dec == nullptr) {
+                    std::cerr << "Decryption error" << std::endl;
+                    return false;
+                }
+                outputfile.write(block_dec+32, curr_block_length-48);
+                outputfile.flush();
+                // epic byte order problems again
+                for (int i = 0; i < 32; i++) {
+                    current_iv[i / 4 * 4 + i % 4] = block_dec[i / 4 * 4 + 3 - (i % 4)];
+                }
+                curr_block_length = 0;
+            }
+        }
+        return true;
+        },
+    // Progress tracker
+    [&filename, &progress](uint64_t len, uint64_t total) {
+        if (progress+10 > len/total*100) return true;
+        progress = len/total*100;
+        std::cout << "\r["<< std::setfill(' ') << std::setw(3) << progress << "%] Downloading and decrypting \"" << filename << "\"" << std::endl;
+        return true;
+    });
+    if (curr_block_length != 0) {
+        char* block_dec = crypto::decrypt_block(block, curr_block_length, derived_secret, current_iv);
+        if (block_dec == nullptr) {
+            std::cerr << "Decryption error" << std::endl;
+            return false;
+        }
+        outputfile.write(block_dec+32, curr_block_length-48);
+        outputfile.flush();
+        curr_block_length = 0;
+    }
+    outputfile.close();
+    std::cout << "File saved as " << path_.filename() << std::endl;
     delete cli;
     return 0;
 }
