@@ -57,7 +57,7 @@ int download(std::string path, const std::string &path_to, const bool &insecure,
     }
 
     if (scheme.empty() || host.empty() || id.empty() || key.empty()) {
-        std::cerr << "Invalid url." << std::endl;
+        std::cerr << "Invalid url. " << path << std::endl;
         return 1;
     }
 
@@ -120,7 +120,7 @@ int download(std::string path, const std::string &path_to, const bool &insecure,
     std::string filename = crypto::decrypt_b64string(filename_enc, derived_secret, derived_secret + 64);
     if (filename.empty()) {
         // Assume that no filename means bad decryption
-        std::cerr << "Could not decrypt filename. Aborting download." << std::endl;
+        std::cerr << "Could not decrypt filename (key: " << key << "). Aborting download." << std::endl;
         return 1;
     }
 
@@ -134,9 +134,9 @@ int download(std::string path, const std::string &path_to, const bool &insecure,
     // open output file
     std::ofstream outputfile;
     std::filesystem::path path_(path_to);
-    if (!path_.has_filename() || std::filesystem::is_directory(path_)) path_/=filename; // add filename if none was provided
+    if (std::filesystem::is_directory(path_)) path_/=filename; // add filename if none was provided
     if (std::filesystem::exists(path_) && !overwrite) {
-        std::cerr << "File with the name " << path_.filename() << " already exists" << std::endl;
+        std::cerr << "File " << path_.filename() << " already exists" << std::endl;
         return 1;
     }
     outputfile.open(path_);
@@ -178,9 +178,11 @@ int download(std::string path, const std::string &path_to, const bool &insecure,
         },
     // Progress tracker
     [&filename, &progress](uint64_t len, uint64_t total) {
-        if (progress+10 > len/total*100) return true;
-        progress = len/total*100;
-        std::cout << "["<< std::setfill(' ') << std::setw(3) << progress << "%] Downloading and decrypting \"" << filename << "\"" << std::endl;
+        if (progress+10 <= (double)len/total*100) {
+            progress = (double)len/total*100;
+            std::cout << "["<< std::setfill(' ') << std::setw(3) << progress << "%] Downloading and decrypting \"" << filename << "\"\r";
+            std::flush(std::cout);
+        }
         return true;
     });
     std::cout << std::endl;

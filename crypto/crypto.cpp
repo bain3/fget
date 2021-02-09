@@ -8,10 +8,9 @@
 #include <cryptopp/base64.h>
 #include <cryptopp/gcm.h>
 #include <cryptopp/aes.h>
-#include <iostream>
 
 namespace crypto {
-    void derive_secret_pbkdf2(const std::string &password, char *salts, int salt_len, char *output) {
+    void derive_secret_pbkdf2(const std::string &password, const char *salts, int salt_len, char *output) {
         auto *salt_bytes = new CryptoPP::byte[salt_len];
 
         // Problem with byte order, ints are read the wrong way. Wasn't fun to resolve.

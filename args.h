@@ -61,6 +61,7 @@ namespace Args {
                             continue;
                         if (positional_arg == options.position) return i;
                         positional_arg++;
+                        break;
                     case 1:
                         // The current string is a keyword argument with a short name.
                         if (!is_bool && options.short_name == argument[size_of_argument - 1]) {
