@@ -2,18 +2,11 @@
 // Created by bain on 02.02.21.
 //
 
-#ifndef CPPHTTPLIB_OPENSSL_SUPPORT
-#define CPPHTTPLIB_OPENSSL_SUPPORT
-#endif
-
-#include <string>
 #include <filesystem>
-#include "download.h"
-#include "libs/httplib.h"
-#include "libs/json.hpp"
-#include "crypto/crypto.h"
+#include "connection.h"
+#include "../libs/json.hpp"
+#include "../crypto/crypto.h"
 
-#define esc "["
 
 const int BLOCK_LENGTH = 5242928;
 
@@ -34,7 +27,8 @@ std::string urlDecode(std::string str){
     }
     return ret;
 }
-int download(std::string path, const std::string &path_to, const bool &insecure, const bool &overwrite) {
+
+int connection::download(std::string path, const std::string &path_to, const bool &insecure, const bool &overwrite) {
 
     // Parse url
     path = urlDecode(path);
@@ -61,38 +55,8 @@ int download(std::string path, const std::string &path_to, const bool &insecure,
         return 1;
     }
 
-    if (scheme == "http")
-        std::cout << esc << "34m"
-                  << "Provided protocol is HTTP, trying HTTPS anyways."
-                  << esc << "0m" << std::endl;
-
-    auto *cli = new httplib::Client(("https://" + host).data());
-    cli->enable_server_certificate_verification(true);
-
-    // Check if server supports HTTPS, use HTTP only with the --insecure option
-    auto res = cli->Options("/");
-    if (res.error() != 0) {
-        if (scheme == "http") {
-            if (insecure) {
-                // The user has provided the --insecure option. Warn the user and check if the server responds on HTTP.
-                delete cli;
-                std::cout << esc << "34m" << "Using unprotected HTTP!" << esc << "0m" << std::endl;
-                cli = new httplib::Client(("http://" + host).data());
-                auto reshttp = cli->Options("/");
-                if (reshttp.error()) {
-                    std::cerr << "Could not connect to " << host << " over HTTP." << std::endl;
-                    return 1;
-                }
-            } else {
-                std::cerr << "Server does not support HTTPS. Use the --insecure option if"
-                             " you acknowledge that HTTP is unsecure, but still want to connect."
-                          << std::endl;
-                return 1;
-            }
-        } else {
-            std::cerr << "Could not connect to " << host << std::endl;
-        }
-    }
+    auto* cli = get_valid_client(scheme, host, insecure);
+    if (cli == nullptr) return 1;
 
     // Get meta about the file. Check if it exists and handle any errors.
     auto meta = cli->Get(("/" + id + "/meta").data());
@@ -142,6 +106,8 @@ int download(std::string path, const std::string &path_to, const bool &insecure,
     outputfile.open(path_);
 
     int progress = -10;
+
+
     // request data and decrypt
     auto content_resp = cli->Get(("/"+id+"/raw").data(),
     // Content receiver
@@ -167,9 +133,7 @@ int download(std::string path, const std::string &path_to, const bool &insecure,
                 outputfile.write(block_dec+32, curr_block_length-48);
                 outputfile.flush();
                 // epic byte order problems again
-                for (int i = 0; i < 32; i++) {
-                    current_iv[i / 4 * 4 + i % 4] = block_dec[i / 4 * 4 + 3 - (i % 4)];
-                }
+                for (int i = 0; i < 32; i++) current_iv[i / 4 * 4 + i % 4] = block_dec[i / 4 * 4 + 3 - (i % 4)];
                 delete block_dec;
                 curr_block_length = 0;
             }
@@ -185,6 +149,8 @@ int download(std::string path, const std::string &path_to, const bool &insecure,
         }
         return true;
     });
+
+
     std::cout << std::endl;
     if (curr_block_length != 0) {
         char* block_dec = crypto::decrypt_block(block, curr_block_length, derived_secret, current_iv);
