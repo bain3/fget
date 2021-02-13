@@ -62,7 +62,7 @@ namespace crypto {
             e.SetKeyWithIV(reinterpret_cast<const CryptoPP::byte *>(key), 32,
                            reinterpret_cast<const CryptoPP::byte *>(iv), 32);
             CryptoPP::AuthenticatedEncryptionFilter ef(e, new CryptoPP::Base64Encoder(
-                    new CryptoPP::StringSink(output)));
+                    new CryptoPP::StringSink(output), false));
             // plaintext -> ecryption filter -> base64 encoder -> cipher string
             CryptoPP::StringSource ss(decrypted, true,
                                       new CryptoPP::Redirector(ef));
@@ -92,6 +92,24 @@ namespace crypto {
         return nullptr;
     }
 
+    char* encrypt_block(char* data, size_t data_len, char* key, char* iv) {
+        auto* output = new CryptoPP::byte[data_len+16];
+        try {
+            CryptoPP::GCM<CryptoPP::AES>::Encryption e;
+            e.SetKeyWithIV(reinterpret_cast<const CryptoPP::byte *>(key), 32,
+                           reinterpret_cast<const CryptoPP::byte *>(iv), 32);
+            CryptoPP::AuthenticatedEncryptionFilter ef(e,
+               new CryptoPP::ArraySink(output, data_len+16), false, 16);
+            CryptoPP::ArraySource ss((CryptoPP::byte*)data, data_len, true,
+                                     new CryptoPP::Redirector(ef));
+            return (char*)output;
+        }
+        catch (CryptoPP::Exception &e) {
+            std::cerr << e.what() << std::endl;
+            return nullptr;
+        }
+    }
+
     std::string generate_key(const int &strength) {
         auto* random = new CryptoPP::byte[strength*8];
         CryptoPP::AutoSeededRandomPool rng;
@@ -118,8 +136,8 @@ namespace crypto {
 
     std::string b64encode(const std::string& string) {
         std::string output;
-        CryptoPP::StringSink sink(output);
-        CryptoPP::StringSource ss(string, true, new CryptoPP::Base64Encoder(&sink));
+        CryptoPP::StringSource ss(string, true,
+                                  new CryptoPP::Base64Encoder(new CryptoPP::StringSink(output), false));
         return output;
     }
 }

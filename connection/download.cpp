@@ -8,7 +8,6 @@
 #include "../crypto/crypto.h"
 
 
-const int BLOCK_LENGTH = 5242928;
 
 std::string urlDecode(std::string str){
     std::string ret;

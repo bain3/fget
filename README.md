@@ -10,3 +10,21 @@ successfully compile:
  - OpenSSL
 
 Both libraries should be available on vcpkg if you're using windows.
+
+## Usage
+```
+Usage: fget [options] path [path_to]
+  --help          Shows this help message
+  --insecure      Allows connections through HTTP, not recommended
+
+Download mode:
+  path            URL
+  path_to         Save path (default: decrypted filename)
+  -o, --overwrite Overwrite files
+Upload mode:
+  path            Path the the file to upload
+  path_to         Host which will be used (default: f.bain.cz)
+  -s, --strength  How long the encryption key should be
+
+Native client for f.bain-like websites. Downloads and uploads encrypted files.
+```

@@ -15,11 +15,17 @@ int main(int argc, char** argv) {
         if (help || argc == 1) {
             std::cout
             << "Usage: fget [options] path [path_to]" << std::endl
-            << " path            Download if URL, upload if local" << std::endl
-            << " path_to         Download path" << std::endl
-            << " --help          Shows this help message" << std::endl
-            << " -o, --overwrite Overwrite files" << std::endl
-            << " --insecure      Allows connections through HTTP, not recommended" << std::endl
+            << "  --help          Shows this help message" << std::endl
+            << "  --insecure      Allows connections through HTTP, not recommended" << std::endl
+            << std::endl
+            << "Download mode:" << std::endl
+            << "  path            URL" << std::endl
+            << "  path_to         Save path (default: decrypted filename)" << std::endl
+            << "  -o, --overwrite Overwrite files" << std::endl
+            << "Upload mode:" << std::endl
+            << "  path            Path the the file to upload" << std::endl
+            << "  path_to         Host which will be used (default: f.bain.cz)" << std::endl
+            << "  -s, --strength  How long the encryption key should be" << std::endl
             << std::endl
             << "Native client for f.bain-like websites. Downloads and uploads encrypted files." << std::endl;
 
@@ -27,9 +33,9 @@ int main(int argc, char** argv) {
         }
         insecure = parser.get_arg<bool>({.long_name="insecure"}, false);
         overwrite = parser.get_arg<bool>({.long_name="overwrite", .short_name='o'}, false);
+        strength = parser.get_arg<int>({.long_name="strength", .short_name='s'}, 12);
         path = parser.get_arg<std::string>({.position=1, .long_name="path"});
         path_to = parser.get_arg<std::string>({.position=2, .long_name="path_to"}, ".");
-        strength = parser.get_arg<int>({.long_name="strength", .short_name='s'}, 12);
     } catch (Args::Exceptions::ArgumentParsingError& e) {
         std::cout << e.what() << std::endl;
         std::exit(0);

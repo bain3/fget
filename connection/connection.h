@@ -11,6 +11,7 @@
 #define esc "["
 
 namespace connection {
+    const int BLOCK_LENGTH = 5242928;
     int download(std::string path, const std::string &path_to, const bool &insecure, const bool &overwrite);
 
     int upload(const std::string &path_str, std::string path_to, const int &strength, const bool &insecure);

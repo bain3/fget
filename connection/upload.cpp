@@ -29,25 +29,117 @@ connection::upload(const std::string &path_str, std::string path_to, const int &
     host = path_to.substr(scheme_end+3);
     if (host[host.length()-1] == '/') host.erase(host.length()-1);
 
-//    auto* cli = get_valid_client(scheme, host, insecure);
-//    if (cli == nullptr) return 1;
-
-    // generate key
+    // generate key & salt
     std::string key = crypto::generate_key(strength);
 
     int* salt = crypto::generate_random_ints(2);
     char derived_key[96];
     crypto::derive_secret_pbkdf2(key, reinterpret_cast<char*>(salt), sizeof(salt), derived_key);
 
-    // create metadata
-    std::string enc_filename = crypto::encrypt_b64string(path.filename().string(), derived_key, derived_key+64);
-    std::cout << path.filename().string() << std::endl;
-    std::cout << enc_filename << std::endl;
-
+    // dump metadata into json and set headers
     nlohmann::json json;
-    json["filename"] = enc_filename;
-    json["salts"] = std::vector<int>(salt, salt+2);
-    std::cout << json.dump() << std::endl;
+    json["filename"] = crypto::encrypt_b64string(path.filename().string(), derived_key, derived_key+64);
+    json["salt"] = std::vector<int>(salt, salt+2);
+    httplib::Headers headers = {
+            {"X-Metadata", crypto::b64encode(json.dump())},
+            {"User-Agent", "fget"}
+    };
 
+    // prepare block and file
+    size_t size_data = std::filesystem::file_size(path);
+    size_t size_out = size_data+(int)(std::ceil((float)size_data/(BLOCK_LENGTH-48)))*48;
+    std::ifstream file(path);
+    if (!file.is_open()) {
+        std::cerr << "Could not open file." << std::endl;
+        return 1;
+    }
+    char plaintext_block[BLOCK_LENGTH-16];
+    char* cipher_block;
+    char current_iv[32];
+    std::memcpy(current_iv, derived_key+32, 32);
+    size_t cipher_block_offset;
+    size_t cipher_block_remaining = 0;
+
+    // get a valid client
+    auto* cli = get_valid_client(scheme, host, insecure);
+    if (cli == nullptr) return 1;
+
+    // setup for tracking progress
+    size_t done = 0;
+    int progress = -10;
+
+    // encrypt and upload the file
+    auto res = cli->Post("/n", headers, size_out,
+    [&](size_t offset, size_t length, httplib::DataSink &sink) {
+        while (length) {
+
+            // progress tracking
+            if (progress+10 <= (double)done/size_out*100) {
+                progress = (double)done/size_out*100;
+                std::cout << "["<< std::setfill(' ') << std::setw(3) << progress << "%] Encrypting and uploading \""
+                << path.filename().string() << "\"\r";
+                std::flush(std::cout);
+            }
+
+            // check if we have enough cipher data
+            if (cipher_block_remaining >= length) {
+                // send data
+                sink.write(cipher_block+offset-cipher_block_offset, length);
+                done += length;
+                cipher_block_remaining -= length;
+                length = 0;
+            } else {
+                // we do not have enough data, create a new block
+                // send reminder of current block, if any
+                if (cipher_block_remaining!=0) {
+                    sink.write(cipher_block + offset - cipher_block_offset, cipher_block_remaining);
+                    done += cipher_block_remaining;
+                    offset += cipher_block_remaining;
+                    length -= cipher_block_remaining;
+                }
+
+                // get plaintext data from file
+                if (!file.good()) {
+                    std::cerr << "File stream gone bad. Something happened with the file being uploaded. Aborting..."
+                              << std::endl;
+                    return false;
+                }
+                size_t cur_block_len = file.tellg();
+                file.read(plaintext_block + 32, BLOCK_LENGTH - 48);
+                cur_block_len = (file.tellg() == -1 ? size_data : (size_t)file.tellg())-cur_block_len+32;
+
+                // generate and copy new salts into the plaintext block
+                int *new_salts = crypto::generate_random_ints(2);
+                std::memcpy(plaintext_block, new_salts, 32);
+
+                // encrypt the block
+                delete[] cipher_block;
+                cipher_block = crypto::encrypt_block(plaintext_block, cur_block_len, derived_key, current_iv);
+
+                cipher_block_offset = (size_t)(offset/BLOCK_LENGTH)*BLOCK_LENGTH;
+                cipher_block_remaining = cur_block_len+16;
+
+                // set new iv (byte order problem again)
+                for (int i = 0; i < 32; i++)
+                    current_iv[i / 4 * 4 + i % 4] = reinterpret_cast<char *>(new_salts)[i / 4 * 4 + 3 - (i % 4)];
+            }
+        }
+        return true;
+    },"application/octet-stream");
+
+    if (res.error() || res->status != 200) {
+        std::cerr << "Failed to upload the file." << std::endl;
+        std::cerr << res->body << std::endl;
+        std::cerr << host << std::endl;
+        return 1;
+    }
+
+    // progress tracking
+    std::cout << "[100%] Encrypting and uploading \"" << path.filename().string() << "\"" << std::endl;
+
+    // parse received json and print the final url, and revocation token
+    nlohmann::json response_json = nlohmann::json::parse(res->body);
+    std::cout << scheme << "://" << host << "/" << response_json["uuid"].get<std::string>() << "#" << key << std::endl;
+    std::cout << "Revocation token: " << response_json["revocation_token"].get<std::string>() << std::endl;
     return 0;
 }
