@@ -11,6 +11,13 @@ successfully compile:
 
 Both libraries should be available on vcpkg if you're using windows.
 
+If on linux, you can build fget with `build.sh`. It will install cryptopp and libssl 
+globally, so its best to run it in a docker container. The output is either
+a `.deb` file, if the system is ubuntu/debian (exe is in the fake-root folder),
+or an executable located in the project root. The only dependency for systems is
+libc greater or equal to the one used by the building os, and libssl (openssl).
+The build script currently supports arch based and debian based systems.
+
 ## Usage
 ```
 Usage: fget [options] path [path_to]
