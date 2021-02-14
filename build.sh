@@ -1,8 +1,8 @@
 #!/bin/sh
 
-VERSION="0.0.1-1"
 # get distro information
 . /etc/os-release
+FGET_VERSION="1.0-0"
 
 # install build dependencies
 if [ "$ID" = "debian" ] || [ "$ID_LIKE" = "debian" ]; then
@@ -22,7 +22,7 @@ unzip -j CRYPTOPP_8_4_0.zip
 # Build cryptopp
 mkdir cmake-build && cd cmake-build || exit
 cmake ..
-make static
+make cryptopp-static
 make install
 
 # Build fget
@@ -33,18 +33,18 @@ make
 # Ubuntu / Debian systems
 # Build .deb
 if [ "$ID" = "ubuntu" ] || [ "$ID" = "debian" ]; then
-  mkdir -p fget_$VERSION/usr/local/bin
-  mv fget fget_$VERSION/usr/local/bin
-  mkdir fget_$VERSION/DEBIAN
+  mkdir -p fget_$FGET_VERSION/usr/local/bin
+  mv fget fget_$FGET_VERSION/usr/local/bin
+  mkdir fget_$FGET_VERSION/DEBIAN
   echo "
-  Package: fget
-  Version: $VERSION
-  Architecture: all
-  Section: base
-  Priority: optional
-  Depends: libc6 (>= $(dpkg-query --showformat='${Version}' --show libc6)), libssl1.1 (>= 1.1)
-  Maintainer: bain <bain@bain.cz>
-  Description: fget is a utility for downloading from f.bain-like websites"\
-  > fget_$VERSION/DEBIAN/control
-  dpkg --build fget_$VERSION
+Package: fget
+Version: $FGET_VERSION
+Architecture: all
+Section: base
+Priority: optional
+Depends: libc6 (>= $(dpkg-query --showformat='${Version}' --show libc6)), libssl1.1 (>= 1.1)
+Maintainer: bain <bain@bain.cz>
+Description: fget is a utility for downloading from f.bain-like websites"\
+  > fget_$FGET_VERSION/DEBIAN/control
+  dpkg --build fget_$FGET_VERSION
 fi
