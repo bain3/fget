@@ -69,7 +69,7 @@ connection::upload(const std::string &path_str, std::string path_to, const int &
     int progress = -10;
 
     // encrypt and upload the file
-    auto res = cli->Post("/n", headers, size_out,
+    auto res = cli->Post("/new", headers, size_out,
     [&](size_t offset, size_t length, httplib::DataSink &sink) {
         while (length) {
 
