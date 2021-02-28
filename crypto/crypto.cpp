@@ -15,22 +15,13 @@ char base73[] = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ$
 
 namespace crypto {
     void derive_secret_pbkdf2(const std::string &password, const char *salts, int salt_len, char *output) {
-        auto *salt_bytes = new CryptoPP::byte[salt_len];
+        auto *salt_bytes = (CryptoPP::byte*)salts;
 
-        // Problem with byte order, ints are read the wrong way. Wasn't fun to resolve.
-        for (int i = 0; i < salt_len; i++) {
-            salt_bytes[i / 4 * 4 + i % 4] = salts[i / 4 * 4 + 3 - (i % 4)];
-        }
         CryptoPP::byte derived[96];
         CryptoPP::PKCS5_PBKDF2_HMAC<CryptoPP::SHA256> pbkdf;
         CryptoPP::byte unused = 0;
         pbkdf.DeriveKey(derived, sizeof(derived), unused, (CryptoPP::byte *) password.data(), password.size(),
                         salt_bytes, salt_len, 50000, 0.0f);
-        std::string result;
-        CryptoPP::HexEncoder encoder(new CryptoPP::StringSink(result));
-
-        encoder.Put(derived, sizeof(derived));
-        encoder.MessageEnd();
         std::memcpy(output, derived, 96);
     }
 
@@ -116,22 +107,34 @@ namespace crypto {
         rng.GenerateBlock(random, strength*8);
         std::string output;
         do {
-            rng.GenerateBlock(random, strength*8);
             output = "";
-            for (int i = 0; i < strength; i++) {
-                char c = base73[random[i] % 73];
-                output.push_back(c);
+            rng.GenerateBlock(random, strength*8);
+            int i = 0;
+            for (int j = 0; i < strength; j++) {
+                while (random[i] > 219) {
+                    // if the random value is bigger than the max multiple of 73 smaller than 255, then skip it
+                    // if we were to use a simple modulo then the lower values would have a higher
+                    // chance to get chosen
+                    i++;
+                    if (i==strength) {
+                        rng.GenerateBlock(random, strength*8);
+                        i=0;
+                    }
+                }
+                output.push_back(base73[random[i]]);
             }
         } while (output[strength-1] == '.' || output[strength-1] == ',' || output[strength-1] == ')');
+        // do not give keys ending with these characters. a lot of messaging apps do not think this is a part of the
+        // url.
 
         return output;
     }
 
-    int* generate_random_ints(const int &number) {
-        auto* random = new CryptoPP::byte[number*32];
+    char* random(const int &number) {
+        auto* random = new CryptoPP::byte[number];
         CryptoPP::AutoSeededRandomPool rng;
-        rng.GenerateBlock(random, number*32);
-        return (int*)random;
+        rng.GenerateBlock(random, number);
+        return (char*)random;
     }
 
     std::string b64encode(const std::string& string) {

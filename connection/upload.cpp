@@ -31,15 +31,14 @@ connection::upload(const std::string &path_str, std::string path_to, const int &
 
     // generate key & salt
     std::string key = crypto::generate_key(strength);
-
-    int* salt = crypto::generate_random_ints(2);
+    char* salt = crypto::random(32);
     char derived_key[96];
-    crypto::derive_secret_pbkdf2(key, reinterpret_cast<char*>(salt), sizeof(salt), derived_key);
+    crypto::derive_secret_pbkdf2(key, salt, 32, derived_key);
 
     // dump metadata into json and set headers
     nlohmann::json json;
     json["filename"] = crypto::encrypt_b64string(path.filename().string(), derived_key, derived_key+64);
-    json["salt"] = std::vector<int>(salt, salt+2);
+    json["salt"] = std::vector<char>(salt, salt+32);
     httplib::Headers headers = {
             {"X-Metadata", crypto::b64encode(json.dump())},
             {"User-Agent", "fget"}
@@ -109,8 +108,8 @@ connection::upload(const std::string &path_str, std::string path_to, const int &
                 cur_block_len = (file.tellg() == -1 ? size_data : (size_t)file.tellg())-cur_block_len+32;
 
                 // generate and copy new salts into the plaintext block
-                int *new_salts = crypto::generate_random_ints(2);
-                std::memcpy(plaintext_block, new_salts, 32);
+                char* new_iv = crypto::random(32);
+                std::memcpy(plaintext_block, new_iv, 32);
 
                 // encrypt the block
                 delete[] cipher_block;
@@ -120,8 +119,8 @@ connection::upload(const std::string &path_str, std::string path_to, const int &
                 cipher_block_remaining = cur_block_len+16;
 
                 // set new iv (byte order problem again)
-                for (int i = 0; i < 32; i++)
-                    current_iv[i / 4 * 4 + i % 4] = reinterpret_cast<char *>(new_salts)[i / 4 * 4 + 3 - (i % 4)];
+                std::memcpy(current_iv, new_iv, 32);
+                delete new_iv;
             }
         }
         return true;

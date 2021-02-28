@@ -70,13 +70,12 @@ int connection::download(std::string path, const std::string &path_to, const boo
 
     // Parse json
     nlohmann::json json = nlohmann::json::parse(meta->body);
-    int salts_int[2];
-    json["salt"].get_to(salts_int);
+    char salts[32];
+    json["salt"].get_to(salts);
     std::string filename_enc;
     json["filename"].get_to(filename_enc);
 
     // derive key and iv
-    auto *salts = static_cast<char *>(static_cast<void *>(salts_int));
     char derived_secret[96];
     crypto::derive_secret_pbkdf2(key, salts, sizeof(salts), derived_secret);
 
@@ -131,8 +130,7 @@ int connection::download(std::string path, const std::string &path_to, const boo
                 }
                 outputfile.write(block_dec+32, curr_block_length-48);
                 outputfile.flush();
-                // epic byte order problems again
-                for (int i = 0; i < 32; i++) current_iv[i / 4 * 4 + i % 4] = block_dec[i / 4 * 4 + 3 - (i % 4)];
+                std::memcpy(current_iv, block_dec, 32);
                 delete block_dec;
                 curr_block_length = 0;
             }

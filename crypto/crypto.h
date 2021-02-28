@@ -13,7 +13,7 @@ namespace crypto {
     std::string b64encode(const std::string& string);
     char* decrypt_block(char* data, size_t data_len, char* key, char* iv);
     char* encrypt_block(char* data, size_t data_len, char* key, char* iv);
-    int* generate_random_ints(const int &number);
+    char * random(const int &number);
 
     std::string generate_key(const int &strength);
 }
