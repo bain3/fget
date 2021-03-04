@@ -122,6 +122,7 @@ namespace crypto {
                     }
                 }
                 output.push_back(base73[random[i]]);
+                i++;
             }
         } while (output[strength-1] == '.' || output[strength-1] == ',' || output[strength-1] == ')');
         // do not give keys ending with these characters. a lot of messaging apps do not think this is a part of the

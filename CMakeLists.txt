@@ -3,7 +3,7 @@ project(fget)
 
 set(CMAKE_CXX_STANDARD 17)
 
-add_executable(fget main.cpp libs/fastpbkdf2.c crypto/crypto.h crypto/crypto.cpp
+add_executable(fget main.cpp crypto/crypto.h crypto/crypto.cpp
         connection/connection.h args.h connection/download.cpp
         libs/httplib.cpp connection/upload.cpp connection/connection.cpp)
 
