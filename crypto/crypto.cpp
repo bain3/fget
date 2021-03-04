@@ -28,7 +28,6 @@ namespace crypto {
     std::string decrypt_b64string(const std::string &encrypted, char *key, char *iv) {
         std::string output;
         try {
-            // CryptoPP's pipe system is quite cool
             CryptoPP::GCM<CryptoPP::AES>::Decryption d;
             d.SetKeyWithIV(reinterpret_cast<const CryptoPP::byte *>(key), 32,
                            reinterpret_cast<const CryptoPP::byte *>(iv), 32);
@@ -102,29 +101,25 @@ namespace crypto {
     }
 
     std::string generate_key(const int &strength) {
-        auto* random = new CryptoPP::byte[strength*8];
+        CryptoPP::byte random[strength*8];
         CryptoPP::AutoSeededRandomPool rng;
         rng.GenerateBlock(random, strength*8);
         std::string output;
         do {
             output = "";
             rng.GenerateBlock(random, strength*8);
-            int i = 0;
-            for (int j = 0; i < strength; j++) {
-                while (random[i] > 219) {
-                    // if the random value is bigger than the max multiple of 73 smaller than 255, then skip it
-                    // if we were to use a simple modulo then the lower values would have a higher
-                    // chance to get chosen
-                    i++;
-                    if (i==strength) {
-                        rng.GenerateBlock(random, strength*8);
-                        i=0;
-                    }
+            // increment i until the key strength is met
+            for (int i = 0; output.size() < strength; i++) {
+                // check if the number is smaller than the max multiple of 73 so we still have an even distribution
+                while (i < strength && random[i] > 219) i++;
+                if (i==strength) {
+                    rng.GenerateBlock(random, strength*8);
+                    i=0;
+                    continue;
                 }
-                output.push_back(base73[random[i]]);
-                i++;
+                output.push_back(base73[random[i]%73]);
             }
-        } while (output[strength-1] == '.' || output[strength-1] == ',' || output[strength-1] == ')');
+        } while (std::string(".,)").find(output[strength-1]) != std::string::npos);
         // do not give keys ending with these characters. a lot of messaging apps do not think this is a part of the
         // url.
 
