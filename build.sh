@@ -2,7 +2,7 @@
 
 # get distro information
 . /etc/os-release
-FGET_VERSION="1.0-0"
+FGET_VERSION="1.1.1-0"
 
 # install build dependencies
 if [ "$ID" = "debian" ] || [ "$ID_LIKE" = "debian" ]; then
