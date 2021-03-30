@@ -34,7 +34,7 @@ make
 # Build .deb
 if [ "$ID" = "ubuntu" ] || [ "$ID" = "debian" ]; then
   mkdir -p fget_$FGET_VERSION/usr/local/bin
-  mv fget fget_$FGET_VERSION/usr/local/bin
+  cp fget fget_$FGET_VERSION/usr/local/bin
   mkdir fget_$FGET_VERSION/DEBIAN
   echo "
 Package: fget
@@ -47,4 +47,10 @@ Maintainer: bain <bain@bain.cz>
 Description: fget is a utility for downloading from f.bain-like websites"\
   > fget_$FGET_VERSION/DEBIAN/control
   dpkg --build fget_$FGET_VERSION
+
 fi
+
+# create output dir and move finished binaries into it
+mkdir bin
+mv fget bin
+mv fget_$FGET_VERSION.deb bin
