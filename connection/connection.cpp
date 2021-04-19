@@ -17,7 +17,7 @@ connection::get_valid_client(const std::string &scheme, const std::string &host,
 
     // Check if server supports HTTPS, use HTTP only with the --insecure option
     auto res = cli->Options("/");
-    if (res.error() != 0) {
+    if (res.error() != httplib::Error::Success) {
         if (scheme == "http") {
             if (insecure) {
                 // The user has provided the --insecure option. Warn the user and check if the server responds on HTTP.
@@ -25,7 +25,7 @@ connection::get_valid_client(const std::string &scheme, const std::string &host,
                 std::cout << esc << "34m" << "Using unprotected HTTP!" << esc << "0m" << std::endl;
                 cli = new httplib::Client(("http://" + host).data());
                 auto reshttp = cli->Options("/");
-                if (reshttp.error()) {
+                if (reshttp.error() != httplib::Error::Success) {
                     std::cerr << "Could not connect to " << host << " over HTTP." << std::endl;
                     return nullptr;
                 }

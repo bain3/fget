@@ -1,9 +1,8 @@
-
 #include "connection.h"
 #include <filesystem>
 #include <iostream>
 #include "../crypto/crypto.h"
-#include "../libs/json.hpp"
+#include <nlohmann/json.hpp>
 
 int
 connection::upload(const std::string &path_str, std::string path_to, const int &strength, const bool &insecure) {
@@ -126,7 +125,7 @@ connection::upload(const std::string &path_str, std::string path_to, const int &
         return true;
     },"application/octet-stream");
 
-    if (res.error() || res->status != 200) {
+    if (res.error() != httplib::Error::Success || res->status != 200) {
         std::cerr << "Failed to upload the file." << std::endl;
         std::cerr << res->body << std::endl;
         std::cerr << host << std::endl;

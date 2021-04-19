@@ -6,7 +6,7 @@
 #define FGET_CONNECTION_H
 
 #include <string>
-#include "../libs/httplib.h"
+#include <httplib.h>
 
 #define esc "["
 
