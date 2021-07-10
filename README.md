@@ -23,6 +23,11 @@ The build script currently supports arch based and debian based systems.
 Usage: fget [options] path [path_to]
   --help          Shows this help message
   --insecure      Allows connections through HTTP, not recommended
+  -h, --host      Select a host (default: f.bain.cz)
+  --show-max-fs   Shows the file size upload limit
+  --edit-max-fs   Edits the file size upload limit with a token
+    Example: fget -h f.bain.cz --edit-max-fs <token> 5G
+    Size magnitudes are: B K M G T
 
 Download mode:
   path            URL
@@ -30,8 +35,15 @@ Download mode:
   -o, --overwrite Overwrite files
 Upload mode:
   path            Path the the file to upload
-  path_to         Host which will be used (default: f.bain.cz)
-  -s, --strength  How long the encryption key should be
+  -s, --strength  Encryption key length
+  
+Examples:
+  $ fget sup3rsecret.doc   
+      uploads sup3rsecret.doc to f.bain, outputs a link and a revocation token
+  $ fget https://f.bain.cz/XXXXX#aaaaaaaaaaaa
+      downloads a file from f.bain
+  $ fget https://f.bain.cz/XXXXX#aaaaaaaaaaaa secret.doc
+      downloads a file from f.bain, saves as "secret.doc"
 
 Native client for f.bain-like websites. Downloads and uploads encrypted files.
 ```
