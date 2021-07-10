@@ -22,7 +22,7 @@ FetchContent_MakeAvailable(json)
 
 add_executable(fget main.cpp crypto/crypto.h crypto/crypto.cpp
         connection/connection.h args.h connection/download.cpp
-        connection/upload.cpp connection/connection.cpp)
+        connection/upload.cpp connection/connection.cpp connection/maxfs.cpp)
 
 find_package(OpenSSL REQUIRED)
 find_package(CryptoPP REQUIRED)

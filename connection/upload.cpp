@@ -5,7 +5,7 @@
 #include <nlohmann/json.hpp>
 
 int
-connection::upload(const std::string &path_str, std::string path_to, const int &strength, const bool &insecure) {
+connection::upload(const std::string &path_str, const std::string& host_url, const int &strength, const bool &insecure) {
 
     // parse file path
     std::filesystem::path path(path_str);
@@ -15,18 +15,9 @@ connection::upload(const std::string &path_str, std::string path_to, const int &
     }
 
     // parse host url or domain
-    if (path_to == ".") path_to = "f.bain.cz";
     std::string scheme;
     std::string host;
-    int scheme_end = path_to.find_first_of("://");
-    if (scheme_end != std::string::npos) {
-        scheme = lower_string(path_to.substr(0, scheme_end));
-    } else {
-        scheme_end = -3;
-        scheme = "https";
-    }
-    host = path_to.substr(scheme_end+3);
-    if (host[host.length()-1] == '/') host.erase(host.length()-1);
+    get_host_scheme(host_url, host, scheme);
 
     // generate key & salt
     std::string key = crypto::generate_key(strength);
@@ -43,9 +34,21 @@ connection::upload(const std::string &path_str, std::string path_to, const int &
             {"User-Agent", "fget"}
     };
 
-    // prepare block and file
+    // get a valid client
+    auto* cli = get_valid_client(scheme, host, insecure);
+    if (cli == nullptr) return 1;
+
+    // get file sizes and check if its within the limits
     size_t size_data = std::filesystem::file_size(path);
     size_t size_out = size_data+(int)(std::ceil((float)size_data/(BLOCK_LENGTH-48)))*48;
+    int max_size = get_max_file_size(cli);
+    if (max_size >= 0 && size_out > max_size) {
+        std::cerr << "The file is too large to upload" << std::endl;
+        return 1;
+    }
+
+
+    // prepare block and file
     std::ifstream file(path);
     if (!file.is_open()) {
         std::cerr << "Could not open file." << std::endl;
@@ -57,10 +60,6 @@ connection::upload(const std::string &path_str, std::string path_to, const int &
     std::memcpy(current_iv, derived_key+32, 32);
     size_t cipher_block_offset;
     size_t cipher_block_remaining = 0;
-
-    // get a valid client
-    auto* cli = get_valid_client(scheme, host, insecure);
-    if (cli == nullptr) return 1;
 
     // setup for tracking progress
     size_t done = 0;
