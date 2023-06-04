@@ -1,3 +1,6 @@
+> **Warning**
+> Outdated
+
 # fget - Native client for f.bain(-like websites)
 Since f.bain cannot serve files directly, utilities like wget do not work.
 This native client is a command line utility allowing headless computers to
